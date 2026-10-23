@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>商品批量工作台｜淘寶 → Yahoo 購物中心</title>
+<style>
+:root{font-family:Inter,"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#1f2937;background:#f4f6fa}
+*{box-sizing:border-box}body{margin:0}header{background:#14243a;color:#fff;padding:22px 28px}
+header h1{font-size:22px;margin:0 0 6px}header p{margin:0;color:#cbd5e1;font-size:13px}
+main{max-width:1440px;margin:auto;padding:22px}.notice{background:#fff8e6;border:1px solid #f2d48c;color:#72520b;border-radius:12px;padding:12px 15px;font-size:13px;line-height:1.65;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:12px;margin-bottom:18px}.stat,.panel{background:#fff;border:1px solid #e4e8f0;border-radius:13px;box-shadow:0 2px 8px #1d2c4408}
+.stat{padding:16px}.stat small{color:#64748b}.stat strong{display:block;font-size:26px;margin-top:5px}
+.layout{display:grid;grid-template-columns:330px 1fr;gap:16px}.panel{padding:17px;margin-bottom:16px}.panel h2{font-size:16px;margin:0 0 13px}.muted{color:#64748b;font-size:12px;line-height:1.6}
+label{display:block;font-size:12px;color:#475569;margin:10px 0 5px}input,textarea,select{font:inherit;width:100%;border:1px solid #d5dce7;border-radius:8px;padding:9px 10px;background:#fff;color:#1f2937}textarea{min-height:120px;resize:vertical}
+button,.filelabel{font:inherit;border:0;border-radius:8px;padding:9px 12px;cursor:pointer;background:#e8edf5;color:#1e293b;font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.primary{background:#2359d1;color:white}button.dark{background:#14243a;color:white}button.danger{background:#fee2e2;color:#991b1b}button:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.full{width:100%}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.toolbar input{max-width:260px}.toolbar select{max-width:180px}
+.tablewrap{overflow:auto;border:1px solid #e5eaf1;border-radius:10px}table{border-collapse:collapse;width:100%;min-width:1050px;font-size:12px}th,td{padding:10px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:top}th{background:#f8fafc;color:#64748b;white-space:nowrap}tr:last-child td{border-bottom:0}td input,td select{min-width:100px;padding:7px;font-size:12px}td .titleinput{min-width:190px}.pill{display:inline-block;border-radius:20px;padding:4px 8px;font-size:11px;background:#e8edf5;color:#334155}.pill.good{background:#dcfce7;color:#166534}.pill.warn{background:#fef3c7;color:#92400e}.pill.bad{background:#fee2e2;color:#991b1b}.empty{text-align:center;color:#94a3b8;padding:35px}
+.footer{font-size:12px;color:#64748b;text-align:center;padding:16px}
+@media(max-width:980px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}main{padding:12px}header{padding:18px}}
+</style>
+</head>
+<body>
+<header><h1>商品批量工作台</h1><p>淘寶商品來源整理 · 人工定價 · 上架前審核 · Yahoo 資料匯出</p></header>
+<main>
+<div class="notice"><strong>第一階段測試版：</strong>本工具目前用瀏覽器本機儲存資料，並支援 CSV 匯入／匯出。貼上淘寶網址不會自動抓取商品資料；請匯入已獲授權的供應商資料，或手動補齊欄位。Yahoo API 尚未連線，不會實際刊登商品。請勿在此頁輸入 API Key、Shared Secret 或其他密碼。</div>
+<section class="stats">
+<div class="stat"><small>商品總數</small><strong id="total">0</strong></div>
+<div class="stat"><small>待整理</small><strong id="drafts">0</strong></div>
+<div class="stat"><small>待審核</small><strong id="reviewCount">0</strong></div>
+<div class="stat"><small>已審核可匯出</small><strong id="approved">0</strong></div>
+</section>
+<div class="layout">
+<aside>
+<div class="panel">
+<h2>① 批量貼上商品連結</h2>
+<p class="muted">每行一個網址。系統會檢查網址格式及重複項目，建立待整理紀錄。</p>
+<label for="urls">淘寶商品網址</label><textarea id="urls" placeholder="https://item.taobao.com/item.htm?id=...\nhttps://detail.tmall.com/item.htm?id=..."></textarea>
+<div class="actions"><button class="primary full" id="addUrls">加入商品清單</button></div>
+</div>
+<div class="panel">
+<h2>② 匯入授權商品資料 CSV</h2>
+<p class="muted">可匯入你有權使用的供應商資料。欄位建議：source_url,title,description,sku,price,stock,category,image_url,rights_confirmed。</p>
+<label class="filelabel full" for="csvFile">選擇 CSV 檔案</label><input id="csvFile" type="file" accept=".csv,text/csv" style="margin-top:8px">
+<div class="actions"><button id="downloadTemplate">下載 CSV 範本</button></div>
+</div>
+<div class="panel">
+<h2>③ 批次操作</h2>
+<label for="bulkStatus">設定選取商品狀態</label>
+<select id="bulkStatus"><option value="draft">待整理</option><option value="review">待審核</option><option value="approved">已審核</option><option value="published">已上架（手動記錄）</option></select>
+<div class="actions"><button id="applyStatus">套用至選取項目</button><button class="danger" id="deleteSelected">刪除選取</button></div>
+<p class="muted">「已上架」只代表你手動記錄狀態，不代表系統已呼叫 Yahoo API。</p>
+</div>
+</aside>
+<section>
+<div class="panel">
+<h2>商品資料與上架前審核</h2>
+<div class="toolbar">
+<input id="search" placeholder="搜尋標題、網址、SKU">
+<select id="filter"><option value="all">全部狀態</option><option value="draft">待整理</option><option value="review">待審核</option><option value="approved">已審核</option><option value="published">已上架（手動記錄）</option><option value="error">資料不完整</option></select>
+<button id="exportAll">匯出全部 CSV</button><button class="primary" id="exportApproved">匯出已審核 CSV</button>
+</div>
+<div class="tablewrap"><table><thead><tr><th><input type="checkbox" id="selectAll" aria-label="全選" style="width:auto"></th><th>狀態</th><th>商品標題</th><th>手動售價 (NT$)</th><th>SKU／編號</th><th>庫存</th><th>來源網址</th><th>權利確認</th><th>操作</th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty">目前沒有商品。先貼上連結或匯入 CSV。</div></div>
+<p class="muted">點擊欄位即可編輯。送交審核前需填寫標題、售價、SKU、庫存、來源網址，並確認商品資料及圖片的使用權。</p>
+</div>
+<div class="panel">
+<h2>部署前／API 對接檢查清單</h2>
+<ul class="muted">
+<li>確認淘寶開放平台應用具備所需商品資料 API 權限，並確認可取得的商品範圍。</li>
+<li>確認 Yahoo WebService API 的商店授權、商品新增端點、必要欄位、分類與規格 schema。</li>
+<li>正式版將 API 憑證只存於伺服器端環境變數或密鑰管理服務，不放進前端。</li>
+<li>先以測試環境或少量商品驗證，加入重試、錯誤紀錄、重複上架防護及操作審計。</li>
+</ul>
+</div>
+</section>
+</div>
+<div class="footer">MVP v0.1 · 資料預設只保存在目前瀏覽器 · 請定期匯出備份</div>
+</main>
+<script>
+const KEY='tybatch_mvp_products_v1';
+let products=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return []}}
+function save(){localStorage.setItem(KEY,JSON.stringify(products));render()}
+function uid(){return 'p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7)}
+function cleanUrl(v){try{let u=new URL(v);return ['taobao.com','tmall.com','detail.tmall.com','item.taobao.com'].some(d=>u.hostname===d||u.hostname.endsWith('.'+d))?u.href:''}catch{return ''}}
+function statusLabel(s){return ({draft:'待整理',review:'待審核',approved:'已審核',published:'已上架（手動）',error:'資料不完整'})[s]||s}
+function pill(s){let cls=s==='approved'?'good':s==='review'?'warn':s==='error'?'bad':'';return `<span class="pill ${cls}">${statusLabel(s)}</span>`}
+function complete(p){return !!(p.title?.trim()&&Number(p.price)>0&&p.sku?.trim()&&p.stock!==''&&Number(p.stock)>=0&&p.source_url&&p.rights_confirmed==='yes')}
+function statusOf(p){if(p.status==='published')return 'published';if(p.status==='approved'&&complete(p))return 'approved';if(p.status==='review'&&!complete(p))return 'error';return p.status}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){
+ document.getElementById('total').textContent=products.length;
+ document.getElementById('drafts').textContent=products.filter(p=>p.status==='draft').length;
+ document.getElementById('reviewCount').textContent=products.filter(p=>p.status==='review').length;
+ document.getElementById('approved').textContent=products.filter(p=>p.status==='approved'&&complete(p)).length;
+ const q=document.getElementById('search').value.toLowerCase(),f=document.getElementById('filter').value;
+ let shown=products.filter(p=>(f==='all'||statusOf(p)===f||p.status===f)&&(!q||[p.title,p.source_url,p.sku].some(x=>(x||'').toLowerCase().includes(q))));
+ const body=document.getElementById('rows');body.innerHTML=shown.map(p=>`<tr data-id="${p.id}">
+ <td><input type="checkbox" class="pick" style="width:auto"></td><td>${pill(statusOf(p))}</td>
+ <td><input class="titleinput" data-field="title" value="${esc(p.title)}" placeholder="商品標題"><input data-field="category" value="${esc(p.category)}" placeholder="Yahoo 分類（待確認）" style="margin-top:5px"></td>
+ <td><input data-field="price" type="number" min="0" step="1" value="${esc(p.price)}" placeholder="手動輸入"></td>
+ <td><input data-field="sku" value="${esc(p.sku)}" placeholder="商品編號"></td>
+ <td><input data-field="stock" type="number" min="0" step="1" value="${esc(p.stock)}" placeholder="庫存"></td>
+ <td><input data-field="source_url" value="${esc(p.source_url)}" placeholder="商品網址"><input data-field="image_url" value="${esc(p.image_url)}" placeholder="圖片 URL（需有權使用）" style="margin-top:5px"></td>
+ <td><select data-field="rights_confirmed"><option value="no" ${p.rights_confirmed!=='yes'?'selected':''}>未確認</option><option value="yes" ${p.rights_confirmed==='yes'?'selected':''}>已確認</option></select></td>
+ <td><select data-field="status"><option value="draft" ${p.status==='draft'?'selected':''}>待整理</option><option value="review" ${p.status==='review'?'selected':''}>待審核</option><option value="approved" ${p.status==='approved'?'selected':''}>已審核</option><option value="published" ${p.status==='published'?'selected':''}>已上架（手動）</option></select><button class="danger remove" style="margin-top:6px">刪除</button></td>
+ </tr>`).join('');
+ document.getElementById('empty').style.display=shown.length?'none':'block';
+ body.querySelectorAll('[data-field]').forEach(el=>{el.addEventListener('change',e=>{let tr=e.target.closest('tr'),p=products.find(x=>x.id===tr.dataset.id);p[e.target.dataset.field]=e.target.value;if(p.status==='approved'&&!complete(p))p.status='review';save()})});
+ body.querySelectorAll('.remove').forEach(el=>el.addEventListener('click',e=>{let id=e.target.closest('tr').dataset.id;products=products.filter(p=>p.id!==id);save()}));
+ document.getElementById('selectAll').checked=false;
+}
+document.getElementById('addUrls').onclick=()=>{
+ const lines=[...new Set(document.getElementById('urls').value.split(/\s+/).map(x=>x.trim()).filter(Boolean))];
+ let added=0,skipped=0;
+ lines.forEach(line=>{let url=cleanUrl(line);if(!url){skipped++;return}if(products.some(p=>p.source_url===url)){skipped++;return}
+ products.push({id:uid(),source_url:url,title:'',description:'',sku:'',price:'',stock:'',category:'',image_url:'',rights_confirmed:'no',status:'draft'});added++});
+ document.getElementById('urls').value='';save();alert(`新增 ${added} 件，略過 ${skipped} 件（網址格式不符或重複）。商品資料尚未自動採集，請匯入授權資料或手動補齊。`);
+};
+document.getElementById('search').oninput=render;document.getElementById('filter').onchange=render;
+document.getElementById('selectAll').onchange=e=>document.querySelectorAll('.pick').forEach(x=>x.checked=e.target.checked);
+function selectedIds(){return [...document.querySelectorAll('#rows tr')].filter(tr=>tr.querySelector('.pick')?.checked).map(tr=>tr.dataset.id)}
+document.getElementById('applyStatus').onclick=()=>{let ids=selectedIds();if(!ids.length)return alert('請先選取商品');let s=document.getElementById('bulkStatus').value;products.forEach(p=>{if(ids.includes(p.id)){p.status=s;if(s==='approved'&&!complete(p))p.status='review'}});save()};
+document.getElementById('deleteSelected').onclick=()=>{let ids=selectedIds();if(!ids.length)return alert('請先選取商品');if(confirm(`確定刪除選取的 ${ids.length} 件商品？`)){products=products.filter(p=>!ids.includes(p.id));save()}};
+function csvEscape(v){let s=String(v??'');return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+const fields=['source_url','title','description','sku','price','stock','category','image_url','rights_confirmed','status'];
+function downloadCSV(arr,name){let content='\ufeff'+[fields.join(','),...arr.map(p=>fields.map(k=>csvEscape(p[k])).join(','))].join('\r\n');let blob=new Blob([content],{type:'text/csv;charset=utf-8;'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+document.getElementById('exportAll').onclick=()=>downloadCSV(products,'商品清單.csv');
+document.getElementById('exportApproved').onclick=()=>{let a=products.filter(p=>p.status==='approved'&&complete(p));if(!a.length)return alert('沒有符合條件的已審核商品。請確認標題、售價、SKU、庫存、來源網址及資料使用權。');downloadCSV(a,'Yahoo_待刊登商品.csv')};
+document.getElementById('downloadTemplate').onclick=()=>downloadCSV([{source_url:'https://item.taobao.com/item.htm?id=example',title:'範例商品（請替換）',description:'',sku:'SKU001',price:'999',stock:'10',category:'待依 Yahoo 分類規格填寫',image_url:'',rights_confirmed:'no',status:'draft'}],'商品匯入範本.csv');
+function parseCSV(text){
+ const rows=[];let row=[],cell='',quoted=false;
+ text=text.replace(/^\ufeff/,'');
+ for(let i=0;i<text.length;i++){let c=text[i],n=text[i+1];if(quoted){if(c==='"'&&n==='"'){cell+='"';i++}else if(c==='"')quoted=false;else cell+=c}else{if(c==='"')quoted=true;else if(c===','){row.push(cell);cell=''}else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell=''}else cell+=c}}
+ if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row)}
+ if(!rows.length)return [];let heads=rows.shift().map(x=>x.trim());
+ return rows.filter(r=>r.some(x=>x.trim())).map(r=>Object.fromEntries(heads.map((h,i)=>[h,(r[i]||'').trim()])));
+}
+document.getElementById('csvFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const data=parseCSV(await file.text());let added=0;data.forEach(d=>{let url=cleanUrl(d.source_url||d.url||'');products.push({id:uid(),source_url:url||d.source_url||d.url||'',title:d.title||d.name||'',description:d.description||'',sku:d.sku||d.item_id||'',price:d.price||'',stock:d.stock||'',category:d.category||'',image_url:d.image_url||'',rights_confirmed:d.rights_confirmed==='yes'?'yes':'no',status:'draft'});added++});save();alert(`匯入 ${added} 筆資料。請逐筆檢查欄位及資料使用權。`)}catch(err){alert('CSV 匯入失敗，請檢查檔案格式。')}e.target.value=''};
+render();
+</script>
+</body>
+</html>
